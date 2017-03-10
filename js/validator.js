@@ -209,10 +209,12 @@
       return $el.attr('data-error')
     }
 
-    function getErrorMessage(key) {
+    function getErrorMessage(key, error) {
       return getValidatorSpecificError(key)
           || getValidityStateError()
+          || (typeof error == 'string' ? error : null)
           || getGenericError()
+          || error      
     }
 
     $.each(this.validators, $.proxy(function (key, validator) {
@@ -220,7 +222,7 @@
       if ((getValue($el) || $el.attr('required')) &&
           ($el.attr('data-' + key) !== undefined || key == 'native') &&
           (error = validator.call(this, $el))) {
-         error = getErrorMessage(key) || error
+         error = getErrorMessage(key, error)
         !~errors.indexOf(error) && errors.push(error)
       }
     }, this))
@@ -234,7 +236,7 @@
             }
             deferredErrors.push(validator.call(self, $el)
               .fail(function (error) {
-                  error = getErrorMessage(key) || error
+                  error = getErrorMessage(key, error)
                   !~errors.indexOf(error) && errors.push(error)
               }))
         }, self))
