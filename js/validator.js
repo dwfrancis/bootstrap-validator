@@ -138,18 +138,16 @@
   }
 
   Validator.prototype.onInput = function (e) {
-    var self        = this
-    var $el         = $(e.target)
-    var deferErrors = e.type !== 'focusout'
+    var self      = this
+    var $el       = $(e.target)
+    var immediate = e.type === 'focusout'
 
     if (!this.$inputs.is($el)) return
 
-    this.validateInput($el, deferErrors).done(function () {
-      self.toggleSubmit()
-    })
+    self.defer($el, self.validateInput, immediate)
   }
 
-  Validator.prototype.validateInput = function ($el, deferErrors) {
+  Validator.prototype.validateInput = function ($el) {
     var value      = getValue($el)
     var prevErrors = $el.data('bs.validator.errors')
 
@@ -165,7 +163,7 @@
       $el.data('bs.validator.errors', errors)
 
       errors.length
-        ? deferErrors ? self.defer($el, self.showErrors) : self.showErrors($el)
+        ? self.showErrors($el)
         : self.clearErrors($el)
 
       if (!prevErrors || errors.toString() !== prevErrors.toString()) {
@@ -229,21 +227,19 @@
 
     if (!errors.length && getValue($el)) {
         var self = this
-        self.defer($el, function () {
-          var deferredErrors = []
-          $.each(self.deferredValidators, $.proxy(function (key, validator) {
-              if ($el.attr('data-' + key) === undefined) {
-                  return
-              }
-              deferredErrors.push(validator.call(self, $el)
-                .fail(function (error) {
-                    error = getErrorMessage(key, error)
-                    !~errors.indexOf(error) && errors.push(error)
-                }))
-          }, self))
-          $.when.apply($, deferredErrors)
-            .always(function () { deferred.resolve(errors) })
-        })
+        var deferredErrors = []
+        $.each(self.deferredValidators, $.proxy(function (key, validator) {
+            if ($el.attr('data-' + key) === undefined) {
+                return
+            }
+            deferredErrors.push(validator.call(self, $el)
+              .fail(function (error) {
+                  error = getErrorMessage(key, error)
+                  !~errors.indexOf(error) && errors.push(error)
+              }))
+        }, self))
+        $.when.apply($, deferredErrors)
+          .always(function () { deferred.resolve(errors) })
     } else deferred.resolve(errors)
 
     return deferred.promise()
@@ -338,10 +334,10 @@
     this.$btn.toggleClass('disabled', this.isIncomplete() || this.hasErrors())
   }
 
-  Validator.prototype.defer = function ($el, callback) {
+  Validator.prototype.defer = function ($el, callback, immediate) {
     callback = $.proxy(callback, this, $el)
-    if (!this.options.delay) return callback()
     window.clearTimeout($el.data('bs.validator.timeout'))
+    if (!this.options.delay || immediate) return callback()
     $el.data('bs.validator.timeout', window.setTimeout(callback, this.options.delay))
   }
 
